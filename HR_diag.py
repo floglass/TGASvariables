@@ -206,11 +206,11 @@ def simbad_create_data_frame(cleaned_output):
 def simbad_output():
     new_out, data = simbad_outputcolumn_clean()
     df = simbad_create_data_frame(new_out)
-    pickleIt(df)
+    pickle_it(df)
     return
 
 
-def pickleIt(df, target_file='simbad_mag_errors.pkl'):
+def pickle_it(df, target_file='simbad_mag_errors.pkl'):
     """ pickle a DataFrame 'df' into 'target_file' """
     print "Starting pickling of %s.." % target_file
     with open(target_file, 'wb') as pkl_file:
@@ -219,7 +219,7 @@ def pickleIt(df, target_file='simbad_mag_errors.pkl'):
     return
 
 
-def unPickleIt(target_file):
+def un_pickle(target_file):
     """ unpickle a DataFrame from 'target_file' """
     print "Opening pickle file '%s'.." % target_file
     with open(target_file, 'rb') as pkl_file:
@@ -294,6 +294,6 @@ if __name__ == "__main__":
         else:
             print ".. Files not found"
             print "Creating new pickle files '%s' and '%s'" % (target, target2)
-            pickleIt(df, target)
-            pickleIt(df2, target2)
+            pickle_it(df, target)
+            pickle_it(df2, target2)
             print "..Pickle creation done\n----------"
