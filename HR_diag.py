@@ -124,31 +124,6 @@ def plotErrors():
     return
 
 
-"""
-sigma M = 2.17* sigma_pi/pi
-voir email de Laurent.
-
-Lorsque je recalcule l'erreur, j'obtiens: sigma_M = sigma_m + 5*sigma_pi/pi
-
-Reste a calculer les erreurs sur les variables, et plotter sur le diagramme HR
-DONE -- Reste a finir le script pour nettoyer les outputs SIMBAD
-
-Xmatch between TGAS DR1 and Tycho2 catalog:
-TGAS_Tycho = pd.read_csv('xmatch_TGAS_Tycho2.csv', header=0, usecols=('hip','tycho2_id','TYC1','TYC2','TYC3','HIP','BTmag','VTmag'),dtype={'hip':float,'tycho2_id':str,'TYC1':str,'TYC2':str,'TYC3':str,'HIP':float,'BTmag':float,'VTmag':float},na_values=['-1',-1])
-
---have to find the duplicates (if 2 objects very close, 4 entries are made).
-duplicates = df[(df['tycho2_id'].duplicated(keep=False))&(df['tycho2_id'].notnull())] #keep='first'
-select the duplicates (tycho2_id and TYC3 are crossed)
-duplicates in 'duplicates.pkl'
-
-if:
-tycho2_id and TYC1-TYC2-TYC3 are not a match,
-drop the line.
-df2 = df.drop(duplicates.index) #drop indexes from duplicates in df
-
-"""
-
-
 def simbad_makescript(df2):
     """ Creates a SIMBAD script to get photometric info -mainly errors- on a subset of stars (the variables) """
     print "Starting process.."
