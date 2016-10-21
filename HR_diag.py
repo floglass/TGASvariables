@@ -11,76 +11,84 @@ import cPickle
 
 
 def import_data(catalog='xmatch_TGAS_Simbad.csv', params=None, nrows=None, delimiter=','):
-    """ imports 'catalog', and creates a DataFrame containing the columns specified in 'params'.
+    """ imports 'catalog', and creates a pandas.DataFrame containing the columns specified in 'params'.
     'catalog' is expected to be in the .csv format. """
     print "Loading %s and creating DataFrame.." % catalog
-    df = pd.read_csv(catalog, delimiter=delimiter, header=0, usecols=params, nrows=nrows)
+    df_imported = pd.read_csv(catalog, delimiter=delimiter, header=0, usecols=params, nrows=nrows)
     print "..Done\n----------"
-    return df
+    return df_imported
 
 
-def create_tycho_id(df):
-    df['tycho2_id'] = df.TYC1.astype(str).str.cat(df.TYC2.astype(str), sep='-').str.cat(df.TYC3.astype(str), sep='-')
-    df = df.rename(columns={'HIP': 'hip'})
-    return df
+def create_tycho_id(tycho2df):
+    """ creates a new column 'tycho2_id' in the tycho2 catalog. This is for comparison with the TGAS catalog. """
+    tycho2df['tycho2_id'] = tycho2df.TYC1.astype(str).str.cat(tycho2df.TYC2.astype(str), sep='-')\
+        .str.cat(tycho2df.TYC3.astype(str), sep='-')
+    tycho2df = tycho2df.rename(columns={'HIP': 'hip'})
+    return tycho2df
 
 
-def reindex(df):
-    df = df.set_index(['hip', 'tycho2_id'])
-    return df
+def reindex(tycho2df_toindex):
+    """ passes the two columns 'hip' and 'tycho2_id' as indexes of the DataFrame """
+    tycho2df_toindex = tycho2df_toindex.set_index(['hip', 'tycho2_id'])
+    return tycho2df_toindex
 
 
-def data_process(df=None, cutoff=0.2, catalog='xmatch_TGAS_Simbad.csv'):
-    """ select the data, add columns for plotting """
+def data_process(df_toprocess=None, cutoff=0.2, catalog='xmatch_TGAS_Simbad.csv'):
+    """ select data with relative parallax error less than 'cutoff', add absolute magnitude columns for plotting """
     print "Selecting objects.."
     print "Cutoff at relative parallax error of %s\n----------" % cutoff
-    df['sigma_pi/pi'] = df.loc[:, 'parallax_error']/df.loc[:, 'parallax']
+    df_toprocess['sigma_pi/pi'] = df_toprocess.loc[:, 'parallax_error'] / df_toprocess.loc[:, 'parallax']
 
     # only take objects with relative parallax error < cutoff
-    df = df.loc[df.loc[:, 'parallax']/df.loc[:, 'parallax_error'] > 1./cutoff]
+    df_toprocess = df_toprocess.loc[df_toprocess.loc[:, 'parallax'] /
+                                    df_toprocess.loc[:, 'parallax_error'] > 1. / cutoff]
 
     # add columns 'sigma_pi/pi (for cutoff), 'B_V' (B-V) and 'M_G' (absolute mag)
     print catalog
     if catalog == 'xmatch_TGAS_Simbad.csv':
-        df = df.loc[(df['J'] < 11.) & (df['K'] < 11.)]
-        print "min in J: %s" % np.max(df['J'])
-        print "max in J: %s" % np.min(df['J'])
-        df.insert(10, 'B_V', df.loc[:, 'B']-df.loc[:, 'V'])
-        df.insert(10, 'J_K', df.loc[:, 'J']-df.loc[:, 'K'])
-        df.insert(10, 'M_G', df.loc[:, 'phot_g_mean_mag']-5.*(np.log10(1000./df.loc[:, 'parallax'])-1.))
-        df.insert(10, 'M_J', df.loc[:, 'J']-5.*(np.log10(1000./df.loc[:, 'parallax'])-1.))
-        df.insert(10, 'M_K', df.loc[:, 'K']-5.*(np.log10(1000./df.loc[:, 'parallax'])-1.))
+        df_toprocess = df_toprocess.loc[(df_toprocess['J'] < 11.) & (df_toprocess['K'] < 11.)]
+        print "min in J: %s" % np.max(df_toprocess['J'])
+        print "max in J: %s" % np.min(df_toprocess['J'])
+        df_toprocess.insert(10, 'B_V', df_toprocess.loc[:, 'B'] - df_toprocess.loc[:, 'V'])
+        df_toprocess.insert(10, 'J_K', df_toprocess.loc[:, 'J'] - df_toprocess.loc[:, 'K'])
+        df_toprocess.insert(10, 'M_G', df_toprocess.loc[:, 'phot_g_mean_mag'] - 5. *
+                            (np.log10(1000. / df_toprocess.loc[:, 'parallax']) - 1.))
+        df_toprocess.insert(10, 'M_J', df_toprocess.loc[:, 'J'] - 5. *
+                            (np.log10(1000. / df_toprocess.loc[:, 'parallax']) - 1.))
+        df_toprocess.insert(10, 'M_K', df_toprocess.loc[:, 'K'] - 5. *
+                            (np.log10(1000. / df_toprocess.loc[:, 'parallax']) - 1.))
 
     if catalog == 'xmatch_TGAS_VSX.csv':
-        df.insert(8, 'Var', 'var')
-    print "%s objects selected" % len(df)
+        df_toprocess.insert(8, 'Var', 'var')
+    print "%s objects selected" % len(df_toprocess)
     print "..Done\n----------"
-    return df
+    return df_toprocess
 
 
-def get_pickle(get_pkl_file='simbad_mag_errors.pkl'):
+def get_pickle(get_file='simbad_mag_errors.pkl'):
     """ load and unpickle a pickled pandas.DataFrame 'pkl_file' """
-    print "Opening %s and unpickling the DataFrame.." % get_pkl_file
-    with open(get_pkl_file, 'r') as pkl_file:
-        df = cPickle.load(pkl_file)
+    print "Opening %s and unpickling the DataFrame.." % get_file
+    with open(get_file, 'r') as opened_file:
+        df_unpickled = cPickle.load(opened_file)
     print "..Done"
-    return df
+    return df_unpickled
 
 
-def merge_df(df, df_error, merge_on=None):  # avoid mutable default argument with if merge_on is None: default
-    """ add two pandas.DataFrames together """
-    if merge_on is None:
-        merge_on = ['hip', 'tycho2_id']
-    df = df.merge(df, df_error, on=merge_on)
-    return df
+def merge_df(merge_on_df, merge_with_df, merge_column=None):
+    """ add two pandas.DataFrames together on columns 'hip' and 'tycho2_id' columns.
+    Avoid mutable default argument in 'merge_column' (if merge_column is None: default)"""
+    if merge_column is None:
+        merge_column = ['hip', 'tycho2_id']
+    merge_on_df = merge_on_df.merge(merge_on_df, merge_with_df, on=merge_column)
+    return merge_on_df
 
 
-def plot_full(df, list_variables, variable_types, x='J_K', y='M_J'):
+def plot_full(plot_df, list_variable_stars, variable_stars_types, x='J_K', y='M_J'):
     plt.ion()
     print "cutoff at %s" % args.cutoff
-    plot_hr_diag(df, x=x, y=y)
+    plot_hr_diag(plot_df, x=x, y=y)
     plt.colorbar()
-    plot_variable_stars(list_variables, variable_types, x=x, y=y)
+    plot_variable_stars(list_variable_stars, variable_stars_types, x=x, y=y)
     print "Plotting '%s' vs. '%s'" % y, x
     nTEX.plotSettings()
     print "----------"
@@ -88,12 +96,13 @@ def plot_full(df, list_variables, variable_types, x='J_K', y='M_J'):
     return
 
 
-def plot_hr_diag(df, x='J_K', y='M_J', marker='.', color='b'):
+def plot_hr_diag(hr_df, x='J_K', y='M_J', marker='.', color='b'):
     """ plotting of the background stars, making the actual HR diagram.
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
     plt.figure()
     print "Plotting background stars.."
-    plt.hist2d(df[x].tolist(), df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5, marker=marker, c=color)
+    plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5, marker=marker,
+               c=color)
     plt.axis([-0.5, 1.5, -3., 10])
     plt.gca().invert_yaxis()
     plt.xlabel(r'$J-K$')
@@ -117,14 +126,14 @@ def plot_variable_stars(variablesdf, variabletype=None, x='J_K', y='M_G', size=4
     return
 
 
-def get_variable_stars(df, df2, variabletype=None):
+def get_variable_stars(df_data, df_variables_names, variabletype=None):
     """ Child function fo plot_variable_stars. Process the DataFrame to select only stars marked as
     'var_type' variable stars """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                         'GDOR', 'SPB', 'M']
-    are_variables = df2[df2.loc[:, 'Type'].isin(variabletype)]
-    variable_df = pd.merge(df, are_variables, how='inner', on=['hip', 'tycho2_id'])
+    are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
+    variable_df = pd.merge(df_data, are_variables, how='inner', on=['hip', 'tycho2_id'])
     variable_df = variable_df[np.isnan(variable_df.loc[:, 'K']) is False]  # only get stars with K measurement
     return variable_df
 
@@ -134,18 +143,20 @@ def plot_errors():
     return
 
 
-def simbad_makescript(df2):
+def simbad_makescript(df_variable_stars_list):
     """ Creates a SIMBAD script to get photometric info -mainly errors- on a subset of stars (the variables) """
     print "Starting process.."
     with open('SIMBAD_script.txt', 'w') as sc:
         print "Opening 'SIMBAD_script.txt' and dumping variable stars names:"
         sc.write("format object form1 \"%IDLIST(hip,tyc),%FLUXLIST(B,V,J,K;N F,E,)\"\n")
-        hip_numbers = df2['hip'].loc[np.isnan(df2.loc[:, 'hip']) is False].tolist()
+        hip_numbers = df_variable_stars_list['hip'].loc[np.isnan(df_variable_stars_list.loc[:, 'hip'])
+                                                        is False].tolist()
         print "Hip identification.."
         for hip_number in hip_numbers:
             sc.write("query id hip %s\n" % (int(hip_number)))
         print "..Done"
-        tycho_numbers = df2['tycho2_id'].loc[pd.isnull(df2.loc[:, 'tycho2_id']) is False].tolist()
+        tycho_numbers = df_variable_stars_list['tycho2_id'].loc[pd.isnull(df_variable_stars_list.loc[:, 'tycho2_id'])
+                                                                is False].tolist()
         print "Tycho2 identification.."
         for tycho_number in tycho_numbers:
             sc.write("query id tyc %s\n" % tycho_number)
@@ -173,10 +184,10 @@ def simbad_outputcolumn_clean(output_file='simbad_output_0.1.txt'):
             line_list = line.split(',')
         if len(line_list) < 11:
             # handling missing columns : B, V, J, K are actually two columns
-            for count,string in enumerate(['HIP', 'TYC', 'B', 'V', 'J', 'K']):
+            for count, string in enumerate(['HIP', 'TYC', 'B', 'V', 'J', 'K']):
                 if string not in line:
                     # print "%s not in %s"%(string, line)
-                    line_list.insert(count,np.nan)
+                    line_list.insert(count, np.nan)
                     if string in ['B', 'V', 'J', 'K']:
                         line_list.insert(count+1, np.nan)
         if i > 0:
@@ -198,23 +209,23 @@ def simbad_outputlineclean(line_list):
 
 def simbad_create_data_frame(cleaned_output):
     """ uses the output from 'simbad_outputcolumn_clean' to create a pandas.DataFrame """
-    df = pd.DataFrame(cleaned_output[1:], columns=cleaned_output[0])
-    df = df.drop('\n', axis=1)
-    return df
+    simbad_df = pd.DataFrame(cleaned_output[1:], columns=cleaned_output[0])
+    simbad_df = simbad_df.drop('\n', axis=1)
+    return simbad_df
 
 
 def simbad_output():
     new_out, data = simbad_outputcolumn_clean()
-    df = simbad_create_data_frame(new_out)
-    pickle_it(df)
+    dataframe = simbad_create_data_frame(new_out)
+    pickle_it(dataframe)
     return
 
 
-def pickle_it(df, target_file='simbad_mag_errors.pkl'):
-    """ pickle a DataFrame 'df' into 'target_file' """
+def pickle_it(df_to_pickle, target_file='simbad_mag_errors.pkl'):
+    """ pickle a DataFrame 'df_to_pickle' into 'target_file' """
     print "Starting pickling of %s.." % target_file
-    with open(target_file, 'wb') as pkl_file:
-        cPickle.dump(df, pkl_file)
+    with open(target_file, 'wb') as open_file:
+        cPickle.dump(df_to_pickle, open_file)
     print "%s created\n----------" % target_file
     return
 
@@ -222,10 +233,10 @@ def pickle_it(df, target_file='simbad_mag_errors.pkl'):
 def un_pickle(target_file):
     """ unpickle a DataFrame from 'target_file' """
     print "Opening pickle file '%s'.." % target_file
-    with open(target_file, 'rb') as pkl_file:
-        df = cPickle.load(pkl_file)
+    with open(target_file, 'rb') as open_file:
+        df_fresh = cPickle.load(open_file)
     print "..Done"
-    return df
+    return df_fresh
 # ================================================== #
 # ================================================== #
 
