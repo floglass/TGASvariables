@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os.path
 import argparse
-import cPickle
+import cPickle  # use JSON instead
 
 
 def import_data(catalog='xmatch_TGAS_Simbad.csv', params=None, nrows=None, delimiter=','):
@@ -86,23 +86,22 @@ def merge_df(merge_on_df, merge_with_df, merge_column=None):
 def plot_full(plot_df, list_variable_stars, variable_stars_types, x='J_K', y='M_J'):
     plt.ion()
     print "cutoff at %s" % args.cutoff
+    print "Plotting '%s' vs. '%s'" % (y, x)
     plot_hr_diag(plot_df, x=x, y=y)
     plt.colorbar()
     plot_variable_stars(list_variable_stars, variable_stars_types, x=x, y=y)
-    print "Plotting '%s' vs. '%s'" % y, x
     nTEX.plotSettings()
     print "----------"
     plt.show()
     return
 
 
-def plot_hr_diag(hr_df, x='J_K', y='M_J', marker='.', color='b'):
+def plot_hr_diag(hr_df, x='J_K', y='M_J'):
     """ plotting of the background stars, making the actual HR diagram.
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
     plt.figure()
     print "Plotting background stars.."
-    plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5, marker=marker,
-               c=color)
+    plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5)
     plt.axis([-0.5, 1.5, -3., 10])
     plt.gca().invert_yaxis()
     plt.xlabel(r'$J-K$')
@@ -134,7 +133,7 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
                         'GDOR', 'SPB', 'M']
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
     variable_df = pd.merge(df_data, are_variables, how='inner', on=['hip', 'tycho2_id'])
-    variable_df = variable_df[np.isnan(variable_df.loc[:, 'K']) is False]  # only get stars with K measurement
+    variable_df = variable_df[np.isnan(variable_df.loc[:, 'K']) == False]  # only get stars with K measurement
     return variable_df
 
 
@@ -245,16 +244,17 @@ if __name__ == "__main__":
     #################################
     # Parser options and arguments: #
     #################################
-    parser = argparse.ArgumentParser(description='Creates a HR diagram with variables stars')
+    parser = argparse.ArgumentParser(description='Creates a HR diagram with variables stars',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-p', '--pickle', dest='pickle', action='store_false', default=True,
-                        help="Switch for building pickle files of stars and variable stars. Default=%default.")
+                        help="Switch for building pickle files of stars and variable stars. Default=default.")
     parser.add_argument('-c', '--cutoff', dest='cutoff', action='store', default=0.2, type=float,
                         help="At which percentage in relative parallax error should the data stop being read."
-                             "Default=%(default).")
+                             "Default=default.")
     parser.add_argument('-r', '--nrows', dest='nrows', action='store', type=int, default=None,
-                        help="The number of line contained in the initial DataFrame. Default=%default")
+                        help="The number of line contained in the initial DataFrame. Default=default")
     parser.add_argument('-d', '--draw', dest='draw', action='store_false', default=True,
-                        help="Switch the plotting off. Default=%default.")
+                        help="Switch the plotting off. Default=default.")
     args = parser.parse_args()
 
     #########################################################
