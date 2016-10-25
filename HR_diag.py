@@ -9,6 +9,13 @@ import os.path
 import argparse
 import cPickle  # use JSON instead
 
+""" This code's goal is to add some photometric measurements from the Tycho2 catalog to the recently released Tycho-Gaia
+DR1 catalog. The latter not including the photometric data.
+The Tycho2 catalog contains 2539913 stars with BT and VT magnitudes, as well as other astrometric measurements.
+The TGAS catalog contains 2057050 stars with very accurate astrometric measurements, as well as a g band mean mag.
+We are trying to make a M_V versus B-V HR-diagram, to assess the accuracy of the catalog on the variable stars sample.
+"""
+
 
 def import_data(catalog='xmatch_TGAS_Simbad.csv', params=None, nrows=None, delimiter=','):
     """ imports 'catalog', and creates a pandas.DataFrame containing the columns specified in 'params'.
@@ -33,23 +40,58 @@ def reindex(tycho2df_toindex):
     return tycho2df_toindex
 
 
-def data_process(df_toprocess=None, cutoff=0.2, catalog='xmatch_TGAS_Simbad.csv'):
+def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
     """ select data with relative parallax error less than 'cutoff', add absolute magnitude columns for plotting """
+
     print "Selecting objects.."
     print "Cutoff at relative parallax error of %s\n----------" % cutoff
-    df_toprocess['sigma_pi/pi'] = df_toprocess.loc[:, 'parallax_error'] / df_toprocess.loc[:, 'parallax']
+    df_toprocess['sigma_pi/pi'] = df_toprocess.loc[:, 'parallax_error'].astype(float) / df_toprocess.loc[:, 'parallax']\
+        .astype(float)
 
     # only take objects with relative parallax error < cutoff
     df_toprocess = df_toprocess.loc[df_toprocess.loc[:, 'parallax'] /
                                     df_toprocess.loc[:, 'parallax_error'] > 1. / cutoff]
 
-    # add columns 'sigma_pi/pi (for cutoff), 'B_V' (B-V) and 'M_G' (absolute mag)
     print catalog
+    if catalog is None:
+        print "Replacing whitespace by nan"
+        df_toprocess = df_toprocess.replace('      ', np.nan)  # some cells are '      ' instead of nan
+        print "..Done"
+
+        print "Converting BTmag and VTmag to floats.."
+        df_toprocess.BTmag = df_toprocess.BTmag.astype(float)
+        df_toprocess.VTmag = df_toprocess.VTmag.astype(float)
+        print "..Done"
+        # Some values are NaN:
+        print "Removing objects with missing BT or VT measurements.."
+        df_toprocess = df_toprocess[df_toprocess.BTmag.notnull()]
+        df_toprocess = df_toprocess[df_toprocess.VTmag.notnull()]
+        print "..Done"
+
+        print "Computing B-V and M_V.."
+        df_toprocess['B_V'] = df_toprocess.BTmag - df_toprocess.VTmag
+        df_toprocess['M_V'] = df_toprocess.VTmag - 5. * (np.log10(1000. / df_toprocess.parallax) - 1.)
+        print "..Done"
+
+        print "Converting sigma BT and sigma VT to float.."
+        df_toprocess.e_BTmag = df_toprocess.e_BTmag.astype(float)
+        df_toprocess.e_VTmag = df_toprocess.e_VTmag.astype(float)
+        print "..Done"
+
+        print "Computing sigma B-V.."
+        df_toprocess['e_B_V'] = np.sqrt(df_toprocess.e_BTmag.pow(2)+df_toprocess.e_VTmag.pow(2))
+        print "..Done"
+
+        print "Applying selection on sigma BT-VT < %s.." % bv_cutoff
+        df_toprocess = df_toprocess[df_toprocess.e_B_V < bv_cutoff]
+        print "..Done"
+
     if catalog == 'xmatch_TGAS_Simbad.csv':
         df_toprocess = df_toprocess.loc[(df_toprocess['J'] < 11.) & (df_toprocess['K'] < 11.)]
         print "min in J: %s" % np.max(df_toprocess['J'])
         print "max in J: %s" % np.min(df_toprocess['J'])
         df_toprocess.insert(10, 'B_V', df_toprocess.loc[:, 'B'] - df_toprocess.loc[:, 'V'])
+
         df_toprocess.insert(10, 'J_K', df_toprocess.loc[:, 'J'] - df_toprocess.loc[:, 'K'])
         df_toprocess.insert(10, 'M_G', df_toprocess.loc[:, 'phot_g_mean_mag'] - 5. *
                             (np.log10(1000. / df_toprocess.loc[:, 'parallax']) - 1.))
@@ -83,7 +125,18 @@ def merge_df(merge_on_df, merge_with_df, merge_column=None):
     return merge_on_df
 
 
-def plot_full(plot_df, list_variable_stars, variable_stars_types, x='J_K', y='M_J'):
+def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='J_K', y='M_J'):
+    """
+    plots the full thing : HR diagram with TGAS targets, and highlighted variable stars
+
+    :param plot_df: pandas DataFrame to plot
+    :param list_variable_stars: pandas DataFrame of variable stars
+    :param variable_stars_types: list of variable stars types
+    :param x: abscissa of the graph
+    :param y: ordinate of the graph
+    :return:
+    """
+
     plt.ion()
     print "cutoff at %s" % args.cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
@@ -97,22 +150,32 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types, x='J_K', y='M_
 
 
 def plot_hr_diag(hr_df, x='J_K', y='M_J'):
-    """ plotting of the background stars, making the actual HR diagram.
+    """ plotting of the background stars (HR diagram).
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
     plt.figure()
     print "Plotting background stars.."
     plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5)
-    plt.axis([-0.5, 1.5, -3., 10])
+    plt.axis([-0.5, 2., -2., 8.])
     plt.gca().invert_yaxis()
-    plt.xlabel(r'$J-K$')
+    plt.xlabel(r'$B-V$')
     plt.ylabel(r'$%s$' % y)
+    plt.suptitle(r'cutoff = 0.2, $\sigma_{B-V}< 0.15$')
     print "..Done\n----------"
     return
 
 
 def plot_variable_stars(variablesdf, variabletype=None, x='J_K', y='M_G', size=40):
-    """ Parent function of get_variable_stars. Sequencially select 'variableTypes' variable stars and
-    plot them on the HR diagram. """
+    """
+    Parent function of get_variable_stars. Sequencially select 'variableTypes' variable stars and
+    plot them on the HR diagram.
+
+    :param variablesdf: pandas DataFrame containing the variable stars
+    :param variabletype: list of the name of the variable stars' types
+    :param x: abscissa of the graph
+    :param y: ordinate of the graph
+    :param size: size of markers on graph
+    :return:
+    """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
                         'SPB', 'M']
@@ -127,18 +190,21 @@ def plot_variable_stars(variablesdf, variabletype=None, x='J_K', y='M_G', size=4
 
 def get_variable_stars(df_data, df_variables_names, variabletype=None):
     """ Child function fo plot_variable_stars. Process the DataFrame to select only stars marked as
-    'var_type' variable stars """
+    'var_type' variable stars. """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                         'GDOR', 'SPB', 'M']
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
-    variable_df = pd.merge(df_data, are_variables, how='inner', on=['hip', 'tycho2_id'])
-    variable_df = variable_df[np.isnan(variable_df.loc[:, 'K']) == False]  # only get stars with K measurement
+    variable_df = pd.merge(df_data, are_variables, how='inner', on='hip')
+    variable_df2 = pd.merge(df_data, are_variables, how='inner', on='tycho2_id')
+    frames = [variable_df, variable_df2]
+    variable_df = pd.concat(frames, ignore_index=True)
+    # variable_df = variable_df[np.isnan(variable_df.loc[:, 'V']) is False]  # only get stars with K measurement
     return variable_df
 
 
 def plot_errors():
-
+    """ plots the error bars on the variable stars -- work in progress """
     return
 
 
@@ -214,6 +280,7 @@ def simbad_create_data_frame(cleaned_output):
 
 
 def simbad_output():
+    """ process a simbad output file into a workable pickled pandas.DataFrame """
     new_out, data = simbad_outputcolumn_clean()
     dataframe = simbad_create_data_frame(new_out)
     pickle_it(dataframe)
@@ -260,20 +327,22 @@ if __name__ == "__main__":
     #########################################################
     # Beginning of the script -- data import and selection: #
     #########################################################
-    target = 'df_%s.pkl' % args.cutoff
+    # target = 'df_%s.pkl' % args.cutoff
+    target = 'xmatch_TGAS_Tycho2_ByHand.pkl'
     target2 = 'df2_%s.pkl' % args.cutoff
     if os.path.isfile(target) and os.path.isfile(target2):
         print "Opening pickle file '%s'.." % target
-        with open(target, 'rb') as pkl_file:
-            df = cPickle.load(pkl_file)
+        df = pd.read_pickle(target)
         print "..Done"
         print "Opening pickle file '%s'.." % target2
-        with open(target2) as pkl_file:
-            df2 = cPickle.load(pkl_file)
+        df2 = pd.read_pickle(target2)
         print "..Done"
+        df = data_process(df, cutoff=args.cutoff)
+
     else:
         # Use of 'xmatch_TGAS_Tycho2.csv' instead of 'xmatch_TGAS_Simbad.csv'
         # want to use tycho2's B and V mags
+
         df = import_data(catalog='xmatch_TGAS_Simbad.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
                                                                    'phot_g_mean_mag', 'B', 'V', 'J', 'K'),
                          nrows=args.nrows)
@@ -287,10 +356,10 @@ if __name__ == "__main__":
                       'GDOR', 'SPB', 'M']
     list_variables = get_variable_stars(df, df2, variable_types)
     ########################################################
-    # Plotting of HR diag and variables stars with errors: #
+    # Plotting of HR diag and variables stars (with errors): #
     ########################################################
     if args.draw is True:
-        plot_full(df, list_variables, variable_types, x='J_K', y='M_J')
+        plot_full(df, list_variables, variable_types, x='B_V', y='M_V')
 
     #####################################################
     # Creation of the pickle file                       #
