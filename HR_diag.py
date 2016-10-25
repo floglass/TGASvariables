@@ -129,9 +129,11 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
     :param y: ordinate of the graph
     :return:
     """
-
+    if variable_stars_types is None:
+        variable_stars_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
+                                'GDOR', 'SPB', 'M']
     plt.ion()
-    print "cutoff at %s" % args.cutoff
+    print "cutoff at %s" % cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
     plot_hr_diag(plot_df, x=x, y=y, cutoff=cutoff, bvcutoff=bvcutoff)
     plt.colorbar()
@@ -322,6 +324,20 @@ def un_pickle(target_file):
     print "..Done"
     return df_fresh
 
+
+def get_hip_sources(df_main_catalog=None, variable_class=None):
+    if variable_class is None:
+        variable_class = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
+                          'GDOR', 'SPB', 'M']
+    hip_sources = pd.read_csv('Hip/variables.tsv', delimiter=';', header=0)
+    variable_stars = hip_sources[hip_sources.loc[:, 'VarType'].isin(variable_class)]
+    variable_stars.hip = variable_stars.hip.astype(float)
+
+    hip_objects = df_main_catalog[df_main_catalog.hip.isin(variable_stars.hip)]
+    hip_objects = pd.merge(hip_objects, variable_stars, on='hip', how='inner')
+    hip_objects = hip_objects.rename(columns={'VarType': 'Type'})
+
+    return hip_objects
 # ================================================== #
 # ================================================== #
 
