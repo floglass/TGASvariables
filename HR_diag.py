@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os.path
 import argparse
-import cPickle  # use JSON instead
+import cPickle  # use JSON instead ?
+import sys
 
 """ This code's goal is to add some photometric measurements from the Tycho2 catalog to the recently released Tycho-Gaia
 DR1 catalog. The latter not including the photometric data.
@@ -195,11 +196,19 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                         'GDOR', 'SPB', 'M']
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
-    variable_df = pd.merge(df_data, are_variables, how='inner', on='hip')
-    variable_df2 = pd.merge(df_data, are_variables, how='inner', on='tycho2_id')
-    frames = [variable_df, variable_df2]
-    variable_df = pd.concat(frames, ignore_index=True)
-    # variable_df = variable_df[np.isnan(variable_df.loc[:, 'V']) is False]  # only get stars with K measurement
+    hip_list = are_variables.hip.tolist()
+    hip_list = np.array(hip_list)
+    hip_list = hip_list[~np.isnan(hip_list)]  # remove the nans
+    hip_list = list(hip_list)
+    tycho2_list = are_variables.tycho2_id.tolist()
+    tycho2_list = np.array(tycho2_list)
+    tycho2_list = tycho2_list[tycho2_list != 'nan']  # tycho2 is str
+    tycho2_list = list(tycho2_list)
+
+    hip_objects = df_data[df_data.hip.isin(hip_list)]
+    tycho_objects = df_data[df_data.tycho2_id.isin(tycho2_list)]
+
+    variable_df = pd.concat([hip_objects, tycho_objects], axis=0, ignore_index=True)
     return variable_df
 
 
@@ -303,6 +312,7 @@ def un_pickle(target_file):
         df_fresh = cPickle.load(open_file)
     print "..Done"
     return df_fresh
+
 # ================================================== #
 # ================================================== #
 
@@ -354,6 +364,7 @@ if __name__ == "__main__":
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                       'GDOR', 'SPB', 'M']
+    sys.exit(0)
     list_variables = get_variable_stars(df, df2, variable_types)
     ########################################################
     # Plotting of HR diag and variables stars (with errors): #
