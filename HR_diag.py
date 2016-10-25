@@ -8,7 +8,6 @@ from matplotlib.colors import LogNorm
 import os.path
 import argparse
 import cPickle  # use JSON instead ?
-import sys
 
 """ This code's goal is to add some photometric measurements from the Tycho2 catalog to the recently released Tycho-Gaia
 DR1 catalog. The latter not including the photometric data.
@@ -45,9 +44,9 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
     """ select data with relative parallax error less than 'cutoff', add absolute magnitude columns for plotting """
 
     print "Selecting objects.."
-    print "Cutoff at relative parallax error of %s\n----------" % cutoff
     df_toprocess['sigma_pi/pi'] = df_toprocess.loc[:, 'parallax_error'].astype(float) / df_toprocess.loc[:, 'parallax']\
         .astype(float)
+    print "..Done\nCutoff at relative parallax error of %s\n----------" % cutoff
 
     # only take objects with relative parallax error < cutoff
     df_toprocess = df_toprocess.loc[df_toprocess.loc[:, 'parallax'] /
@@ -57,35 +56,28 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
     if catalog is None:
         print "Replacing whitespace by nan"
         df_toprocess = df_toprocess.replace('      ', np.nan)  # some cells are '      ' instead of nan
-        print "..Done"
 
         print "Converting BTmag and VTmag to floats.."
         df_toprocess.BTmag = df_toprocess.BTmag.astype(float)
         df_toprocess.VTmag = df_toprocess.VTmag.astype(float)
-        print "..Done"
         # Some values are NaN:
         print "Removing objects with missing BT or VT measurements.."
         df_toprocess = df_toprocess[df_toprocess.BTmag.notnull()]
         df_toprocess = df_toprocess[df_toprocess.VTmag.notnull()]
-        print "..Done"
 
         print "Computing B-V and M_V.."
         df_toprocess['B_V'] = df_toprocess.BTmag - df_toprocess.VTmag
         df_toprocess['M_V'] = df_toprocess.VTmag - 5. * (np.log10(1000. / df_toprocess.parallax) - 1.)
-        print "..Done"
 
         print "Converting sigma BT and sigma VT to float.."
         df_toprocess.e_BTmag = df_toprocess.e_BTmag.astype(float)
         df_toprocess.e_VTmag = df_toprocess.e_VTmag.astype(float)
-        print "..Done"
 
         print "Computing sigma B-V.."
         df_toprocess['e_B_V'] = np.sqrt(df_toprocess.e_BTmag.pow(2)+df_toprocess.e_VTmag.pow(2))
-        print "..Done"
 
         print "Applying selection on sigma BT-VT < %s.." % bv_cutoff
         df_toprocess = df_toprocess[df_toprocess.e_B_V < bv_cutoff]
-        print "..Done"
 
     if catalog == 'xmatch_TGAS_Simbad.csv':
         df_toprocess = df_toprocess.loc[(df_toprocess['J'] < 11.) & (df_toprocess['K'] < 11.)]
@@ -195,18 +187,35 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                         'GDOR', 'SPB', 'M']
+
+    print "Selecting variable stars.."
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
+    typesdf = are_variables[['hip', 'tycho2_id', 'Type']]
+    print "..Done"
+    print "Preparing subselection of initial DataFrame.."
+    print "..Making Hipparcos list.."
     hip_list = are_variables.hip.tolist()
     hip_list = np.array(hip_list)
     hip_list = hip_list[~np.isnan(hip_list)]  # remove the nans
     hip_list = list(hip_list)
+    print "..Making Tycho2 list.."
     tycho2_list = are_variables.tycho2_id.tolist()
     tycho2_list = np.array(tycho2_list)
     tycho2_list = tycho2_list[tycho2_list != 'nan']  # tycho2 is str
     tycho2_list = list(tycho2_list)
+    print "..Done\n----------"
 
+    print "Getting Hipparcos and Tycho variable objects.."
     hip_objects = df_data[df_data.hip.isin(hip_list)]
+    hip_objects = pd.merge(hip_objects, typesdf, on='hip', how='inner')
+    hip_objects = hip_objects.drop('tycho2_id_y', axis=1)
+    hip_objects = hip_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
+
     tycho_objects = df_data[df_data.tycho2_id.isin(tycho2_list)]
+    tycho_objects = pd.merge(tycho_objects, typesdf, on='tycho2_id', how='inner')
+    tycho_objects = tycho_objects.drop('hip_y', axis=1)
+    tycho_objects = tycho_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
+    print "..Done\n----------"
 
     variable_df = pd.concat([hip_objects, tycho_objects], axis=0, ignore_index=True)
     return variable_df
@@ -364,7 +373,7 @@ if __name__ == "__main__":
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                       'GDOR', 'SPB', 'M']
-    sys.exit(0)
+
     list_variables = get_variable_stars(df, df2, variable_types)
     ########################################################
     # Plotting of HR diag and variables stars (with errors): #
