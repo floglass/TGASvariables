@@ -118,7 +118,7 @@ def merge_df(merge_on_df, merge_with_df, merge_column=None):
     return merge_on_df
 
 
-def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='J_K', y='M_J'):
+def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     """
     plots the full thing : HR diagram with TGAS targets, and highlighted variable stars
 
@@ -133,7 +133,7 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='J_K', 
     plt.ion()
     print "cutoff at %s" % args.cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
-    plot_hr_diag(plot_df, x=x, y=y)
+    plot_hr_diag(plot_df, x=x, y=y, cutoff=cutoff, bvcutoff=bvcutoff)
     plt.colorbar()
     plot_variable_stars(list_variable_stars, variable_stars_types, x=x, y=y)
     nTEX.plotSettings()
@@ -142,7 +142,7 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='J_K', 
     return
 
 
-def plot_hr_diag(hr_df, x='J_K', y='M_J'):
+def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     """ plotting of the background stars (HR diagram).
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
     plt.figure()
@@ -152,18 +152,18 @@ def plot_hr_diag(hr_df, x='J_K', y='M_J'):
     plt.gca().invert_yaxis()
     plt.xlabel(r'$B-V$')
     plt.ylabel(r'$%s$' % y)
-    plt.suptitle(r'cutoff = 0.2, $\sigma_{B-V}< 0.15$')
+    plt.suptitle(r'cutoff = %s, $\sigma_{B-V}< %s$' % (cutoff, bvcutoff))
     print "..Done\n----------"
     return
 
 
-def plot_variable_stars(variablesdf, variabletype=None, x='J_K', y='M_G', size=40):
+def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V', size=40):
     """
     Parent function of get_variable_stars. Sequencially select 'variableTypes' variable stars and
     plot them on the HR diagram.
 
     :param variablesdf: pandas DataFrame containing the variable stars
-    :param variabletype: list of the name of the variable stars' types
+    :param variabletype: list of names of the variable stars' types
     :param x: abscissa of the graph
     :param y: ordinate of the graph
     :param size: size of markers on graph
@@ -341,23 +341,25 @@ if __name__ == "__main__":
                         help="The number of line contained in the initial DataFrame. Default=default")
     parser.add_argument('-d', '--draw', dest='draw', action='store_false', default=True,
                         help="Switch the plotting off. Default=default.")
+    parser.add_argument('-m', '--magnitude', dest='bvcutoff', action='store', default=0.15, type=float,
+                        help="cutoff in 'B-V' magnitude. Default=default.")
     args = parser.parse_args()
 
     #########################################################
     # Beginning of the script -- data import and selection: #
     #########################################################
     # target = 'df_%s.pkl' % args.cutoff
-    target = 'xmatch_TGAS_Tycho2_ByHand.pkl'
-    target2 = 'df2_%s.pkl' % args.cutoff
-    if os.path.isfile(target) and os.path.isfile(target2):
-        print "Opening pickle file '%s'.." % target
-        df = pd.read_pickle(target)
-        print "..Done"
-        print "Opening pickle file '%s'.." % target2
-        df2 = pd.read_pickle(target2)
-        print "..Done"
-        df = data_process(df, cutoff=args.cutoff)
+    target = 'xmatch_TGAS_Tycho2_ByHand.pkl'  # TGAS + photometric measurements from Tycho2
+    # target2 = 'df2_%s.pkl' % args.cutoff  # comes from xmatch TGAS and VSX
 
+    print "Opening pickle file '%s'.." % target
+    df = pd.read_pickle(target)
+    print "..Done"
+    # print "Opening pickle file '%s'.." % target2
+    # df2 = pd.read_pickle(target2)
+    # print "..Done"
+    df = data_process(df, cutoff=args.cutoff, bv_cutoff=args.bvcutoff)
+    """
     else:
         # Use of 'xmatch_TGAS_Tycho2.csv' instead of 'xmatch_TGAS_Simbad.csv'
         # want to use tycho2's B and V mags
@@ -366,10 +368,10 @@ if __name__ == "__main__":
                                                                    'phot_g_mean_mag', 'B', 'V', 'J', 'K'),
                          nrows=args.nrows)
         df = data_process(df, catalog='xmatch_TGAS_Simbad.csv', cutoff=args.cutoff)
-
-        df2 = import_data(catalog='xmatch_TGAS_VSX.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
-                                                                 'Name', 'V', 'Type'), nrows=args.nrows)
-        df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
+    """
+    df2 = import_data(catalog='xmatch_TGAS_VSX.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
+                                                             'Name', 'V', 'Type'), nrows=args.nrows)
+    df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                       'GDOR', 'SPB', 'M']
@@ -379,21 +381,4 @@ if __name__ == "__main__":
     # Plotting of HR diag and variables stars (with errors): #
     ########################################################
     if args.draw is True:
-        plot_full(df, list_variables, variable_types, x='B_V', y='M_V')
-
-    #####################################################
-    # Creation of the pickle file                       #
-    # Check that the pickle file isn't already present: #
-    #####################################################
-    if args.pickle is True:
-        print "Pickle switch is ON:"
-        print "Checking if pickle files are present.."
-        if os.path.isfile(target) and os.path.isfile(target2):
-            print ".. Target files already here!"
-            print "File creation aborted\n----------"
-        else:
-            print ".. Files not found"
-            print "Creating new pickle files '%s' and '%s'" % (target, target2)
-            pickle_it(df, target)
-            pickle_it(df2, target2)
-            print "..Pickle creation done\n----------"
+        plot_full(df, list_variables, variable_types, x='B_V', y='M_V', cutoff=args.cutoff, bvcutoff=args.bvcutoff)
