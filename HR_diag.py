@@ -5,7 +5,6 @@ import numpy as np
 import notoriousTEX as nTEX
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-import os.path
 import argparse
 import cPickle  # use JSON instead ?
 
@@ -94,7 +93,8 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
                             (np.log10(1000. / df_toprocess.loc[:, 'parallax']) - 1.))
 
     if catalog == 'xmatch_TGAS_VSX.csv':
-        df_toprocess.insert(8, 'Var', 'var')
+        df_toprocess = df_toprocess[df_toprocess.V == 0]
+        # df_toprocess.insert(8, 'Var', 'var')
     print "%s objects selected" % len(df_toprocess)
     print "..Done\n----------"
     return df_toprocess
@@ -124,9 +124,12 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
 
     :param plot_df: pandas DataFrame to plot
     :param list_variable_stars: pandas DataFrame of variable stars
+    :type list_variable_stars: pandas.DataFrame
     :param variable_stars_types: list of variable stars types
     :param x: abscissa of the graph
     :param y: ordinate of the graph
+    :param cutoff: max sigma_parallax / parallax allowed on stars
+    :param bvcutoff: max sigma_B-V allowed on stars
     :return:
     """
     if variable_stars_types is None:
@@ -152,14 +155,14 @@ def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5)
     plt.axis([-0.5, 2., -2., 8.])
     plt.gca().invert_yaxis()
-    plt.xlabel(r'$B-V$')
-    plt.ylabel(r'$%s$' % y)
-    plt.suptitle(r'cutoff = %s, $\sigma_{B-V}< %s$' % (cutoff, bvcutoff))
+    plt.xlabel(r'$BT-VT$')
+    plt.ylabel(r'$M_{VT}$')  # Plotting M_{VT}
+    plt.suptitle(r'$\sigma_\pi / \pi < %s, \sigma_{BT-VT}< %s$' % (cutoff, bvcutoff))
     print "..Done\n----------"
     return
 
 
-def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V', size=40):
+def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     """
     Parent function of get_variable_stars. Sequencially select 'variableTypes' variable stars and
     plot them on the HR diagram.
@@ -168,17 +171,17 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V', size=4
     :param variabletype: list of names of the variable stars' types
     :param x: abscissa of the graph
     :param y: ordinate of the graph
-    :param size: size of markers on graph
     :return:
     """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
                         'SPB', 'M']
-    markers = ['^', '^', '^', 'v', '<', '<', '<', '<', '<', '>', '>', '>', '*', 's', 'p']
-    colors = ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
+    markers = ['^', 'o', 'o', 'v', 's', '<', '<', '<', '<', 's', '>', '>', '*', 'o', 'p']
+    colors =  ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
+    sizes =   [40,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
     for i in range(len(variabletype)):
         plt.scatter(variablesdf[x].loc[variablesdf.loc[:, 'Type'] == variabletype[i]], variablesdf[y].loc[variablesdf
-                    .loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i], s=size)
+                    .loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i], s=sizes[i])
         print "plotting %s as %s%s" % (variabletype[i], colors[i], markers[i])
     return
 
@@ -338,6 +341,21 @@ def get_hip_sources(df_main_catalog=None, variable_class=None):
     hip_objects = hip_objects.rename(columns={'VarType': 'Type'})
 
     return hip_objects
+
+
+def remove_misclassified_objects(data_frame):
+    """
+    drop misclassified objects, like SR stars on the Main Sequence, optical binaries, etc.
+    :param data_frame: pandas.DataFrame containing all the variable stars
+    :return: cleaned up DataFrame, with misclassified objects removed
+    """
+    misclassified_objects_index = [377, 672, 673, 818, 666, 845, 674,  # suspected SR, on the MS
+                                   838, 241,  # very bad light curves OSARG type
+                                   887, 348,  # Optical binaries with F5V and A0III
+                                   ]
+    data_frame = data_frame.drop(misclassified_objects_index)
+    return data_frame
+
 # ================================================== #
 # ================================================== #
 
