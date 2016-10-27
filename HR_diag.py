@@ -5,7 +5,6 @@ import numpy as np
 import notoriousTEX as nTEX
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from matplotlib.axes import Axes
 import argparse
 import cPickle  # use JSON instead ?
 
@@ -178,8 +177,8 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
                         'SPB', 'M']
     markers = ['^', 'o', 'o', 'v', 's', '<', '<', '<', '<', 's', '>', '>', '*', 'o', 'p']
-    colors =  ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
-    sizes =   [40,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
+    colors = ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
+    sizes = [40,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
     labels = ['CEP', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
               'SPB', 'M']
     for i in range(len(variabletype)):
@@ -187,12 +186,10 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
             my_label = None
         else:
             my_label = "%s" % labels[i]
-        plt.scatter(variablesdf[x].loc[variablesdf.loc[:, 'Type'] == variabletype[i]], variablesdf[y].loc[variablesdf
-                    .loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i], s=sizes[i],
-                    label=my_label)
+        plt.scatter(variablesdf[x].loc[variablesdf.loc[:, 'Type'] == variabletype[i]], variablesdf[y]
+                    .loc[variablesdf.loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i],
+                    s=sizes[i], label=my_label)
         print "plotting %s as %s%s" % (variabletype[i], colors[i], markers[i])
-    plt.tight_layout()
-    plt.legend(loc="lower right", fontsize=15, scatterpoints=1)
     return
 
 
@@ -355,16 +352,41 @@ def get_hip_sources(df_main_catalog=None, variable_class=None):
 
 def remove_misclassified_objects(data_frame):
     """
+    ID by index is not trustworthy! Should NOT use this function to remove objects.
+    -- added a Variability flag check in data_process, where only CONFIRMED variables are now kept --
+
     drop misclassified objects, like SR stars on the Main Sequence, optical binaries, etc.
     :param data_frame: pandas.DataFrame containing all the variable stars
     :return: cleaned up DataFrame, with misclassified objects removed
     """
-    misclassified_objects_index = [377, 672, 673, 818, 666, 845, 674,  # suspected SR, on the MS
-                                   838, 241,  # very bad light curves OSARG type
-                                   887, 348,  # Optical binaries with F5V and A0III
-                                   ]
-    data_frame = data_frame.drop(misclassified_objects_index)
+    # misclassified_objects_index = [377, 672, 673, 818, 666, 845, 674,  # suspected SR, on the MS
+    #                               838, 241,  # very bad light curves OSARG type
+    #                               887, 348,  # Optical binaries with F5V and A0III
+    #                               ]
+    # data_frame = data_frame.drop(misclassified_objects_index)
     return data_frame
+
+
+def plot_dereddening():
+    """
+    plot a Cepheid at its dereddened position on the HR diag.
+    Reddening coefficients are taken from http://irsa.ipac.caltech.edu/applications/DUST/ using object's RA/DEC
+    :return:
+    """
+    extinction_coefficients = {'2365-2764-1': np.array([0.2622, 0.844]), '4109-638-1': np.array([0.0524, 0.1576]),
+                               '2058-56-1': np.array([0.0751, 0.248]), '3642-2459-1': np.array([0.1907, 0.608]),
+                               '3999-1391-1': np.array([0.3911, 1.2480]), '2607-1448-1': np.array([0.0430, 0.1310])}
+    cepheids = {'2365-2764-1': np.array([0.959, 2.09]), '4109-638-1': np.array([0.705, 2.385]), '2058-56-1':
+                np.array([1.222, 1.333]), '3642-2459-1': np.array([1.088, 2.0518]), '3999-1391-1':
+                np.array([1.360, 1.2567]), '2607-1448-1': np.array([1.484, 0.6963])}
+
+    new_positions_bv_mv = []  # in M_V vs B-V space
+    for obj in extinction_coefficients.keys():
+        new_positions_bv_mv.append(cepheids[obj]-extinction_coefficients[obj])
+
+    for pos in range(len(new_positions_bv_mv)):
+        plt.scatter(new_positions_bv_mv[pos][0], new_positions_bv_mv[pos][1], marker='^', facecolor='w', s=50)
+    return
 
 # ================================================== #
 # ================================================== #
@@ -426,3 +448,5 @@ if __name__ == "__main__":
     ########################################################
     if args.draw is True:
         plot_full(df, list_variables, variable_types, x='B_V', y='M_V', cutoff=args.cutoff, bvcutoff=args.bvcutoff)
+        plt.legend(loc="lower right", fontsize=15, scatterpoints=1)
+
