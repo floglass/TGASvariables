@@ -5,6 +5,7 @@ import numpy as np
 import notoriousTEX as nTEX
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.axes import Axes
 import argparse
 import cPickle  # use JSON instead ?
 
@@ -153,7 +154,7 @@ def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     plt.figure()
     print "Plotting background stars.."
     plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5)
-    plt.axis([-0.5, 2., -2., 8.])
+    plt.axis([-0.2, 2.35, -3., 7.])
     plt.gca().invert_yaxis()
     plt.xlabel(r'$BT-VT$')
     plt.ylabel(r'$M_{VT}$')  # Plotting M_{VT}
@@ -179,10 +180,19 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     markers = ['^', 'o', 'o', 'v', 's', '<', '<', '<', '<', 's', '>', '>', '*', 'o', 'p']
     colors =  ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
     sizes =   [40,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
+    labels = ['CEP', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
+              'SPB', 'M']
     for i in range(len(variabletype)):
+        if i in [2, 6, 7, 8, 11]:
+            my_label = None
+        else:
+            my_label = "%s" % labels[i]
         plt.scatter(variablesdf[x].loc[variablesdf.loc[:, 'Type'] == variabletype[i]], variablesdf[y].loc[variablesdf
-                    .loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i], s=sizes[i])
+                    .loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i], s=sizes[i],
+                    label=my_label)
         print "plotting %s as %s%s" % (variabletype[i], colors[i], markers[i])
+    plt.tight_layout()
+    plt.legend(loc="lower right", fontsize=15, scatterpoints=1)
     return
 
 
@@ -195,7 +205,7 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
 
     print "Selecting variable stars.."
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
-    typesdf = are_variables[['hip', 'tycho2_id', 'Type']]
+    typesdf = are_variables[['hip', 'tycho2_id', 'Type', 'Name']]
     print "..Done"
     print "Preparing subselection of initial DataFrame.."
     print "..Making Hipparcos list.."
