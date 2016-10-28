@@ -12,7 +12,8 @@ import cPickle  # use JSON instead ?
 DR1 catalog. The latter not including the photometric data.
 The Tycho2 catalog contains 2539913 stars with BT and VT magnitudes, as well as other astrometric measurements.
 The TGAS catalog contains 2057050 stars with very accurate astrometric measurements, as well as a g band mean mag.
-We are trying to make a M_V versus B-V HR-diagram, to assess the accuracy of the catalog on the variable stars sample.
+We are trying to make a M_VT versus BT-VT Hertzprung-Russell diagram, to check variable stars in the catalog sample.
+The photometry used is Tycho2's, hence the BT, VT and M_VT magnitudes (instead of the more traditional Johnson's B, V)
 """
 
 
@@ -34,13 +35,24 @@ def create_tycho_id(tycho2df):
 
 
 def reindex(tycho2df_toindex):
-    """ passes the two columns 'hip' and 'tycho2_id' as indexes of the DataFrame """
+    """ passes the two columns 'hip' and 'tycho2_id' as indexes of the DataFrame
+    -- DEPRECATED --"""
     tycho2df_toindex = tycho2df_toindex.set_index(['hip', 'tycho2_id'])
     return tycho2df_toindex
 
 
 def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
-    """ select data with relative parallax error less than 'cutoff', add absolute magnitude columns for plotting """
+    """
+    select data with relative parallax error less than 'cutoff', add absolute magnitude columns for plotting.
+    If catalog is not None, the cutoff on B-V will not be applied (ensures initial variable stars DataFrame is not
+    constrained in magnitudes)
+
+    :param df_toprocess: pandas.DataFrame
+    :param cutoff: the maximum relative error on parallax allowed
+    :param bv_cutoff: the maximum error on temperature (B-V mag)
+    :param catalog: catalog name from which the stars are taken, in a .csv form
+    :return: processed DataFrame
+    """
 
     print "Selecting objects.."
     df_toprocess['sigma_pi/pi'] = df_toprocess.loc[:, 'parallax_error'].astype(float) / df_toprocess.loc[:, 'parallax']\
@@ -94,7 +106,6 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
 
     if catalog == 'xmatch_TGAS_VSX.csv':
         df_toprocess = df_toprocess[df_toprocess.V == 0]
-        # df_toprocess.insert(8, 'Var', 'var')
     print "%s objects selected" % len(df_toprocess)
     print "..Done\n----------"
     return df_toprocess
@@ -123,8 +134,9 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
     plots the full thing : HR diagram with TGAS targets, and highlighted variable stars
 
     :param plot_df: pandas DataFrame to plot
+    :type plot_df: pandas.core.frame.DataFrame
     :param list_variable_stars: pandas DataFrame of variable stars
-    :type list_variable_stars: pandas.DataFrame
+    :type list_variable_stars: pandas.core.frame.DataFrame
     :param variable_stars_types: list of variable stars types
     :param x: abscissa of the graph
     :param y: ordinate of the graph
@@ -148,7 +160,7 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
 
 
 def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
-    """ plotting of the background stars (HR diagram).
+    """ plot the background stars (HR diagram).
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
     plt.figure()
     print "Plotting background stars.."
@@ -178,7 +190,7 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
                         'SPB', 'M']
     markers = ['^', 'o', 'o', 'v', 's', '<', '<', '<', '<', 's', '>', '>', '*', 'o', 'p']
     colors = ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
-    sizes = [40,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
+    sizes = [50,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
     labels = ['CEP', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
               'SPB', 'M']
     for i in range(len(variabletype)):
@@ -231,11 +243,6 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
 
     variable_df = pd.concat([hip_objects, tycho_objects], axis=0, ignore_index=True)
     return variable_df
-
-
-def plot_errors():
-    """ plots the error bars on the variable stars -- work in progress """
-    return
 
 
 def simbad_makescript(df_variable_stars_list):
@@ -352,24 +359,61 @@ def get_hip_sources(df_main_catalog=None, variable_class=None):
 
 def remove_misclassified_objects(data_frame):
     """
-    ID by index is not trustworthy! Should NOT use this function to remove objects.
     -- added a Variability flag check in data_process, where only CONFIRMED variables are now kept --
 
     drop misclassified objects, like SR stars on the Main Sequence, optical binaries, etc.
     :param data_frame: pandas.DataFrame containing all the variable stars
     :return: cleaned up DataFrame, with misclassified objects removed
     """
-    # misclassified_objects_index = [377, 672, 673, 818, 666, 845, 674,  # suspected SR, on the MS
-    #                               838, 241,  # very bad light curves OSARG type
-    #                               887, 348,  # Optical binaries with F5V and A0III
-    #                               ]
-    # data_frame = data_frame.drop(misclassified_objects_index)
+
+    misclassified_objects = ['7720-1455-1', '7911-499-1',  # Mira
+                             '8990-3504-1', '899-471-1',  # SRs with very poor light curves
+                             '6430-88-1',  # SV For, obsolete measurement is p=91d, newer is p=16h
+                             '9017-396-1', '7676-2953-1', '8296-3303-1',  # SR
+                             '2365-2764-1', '4109-638-1', '2058-56-1',  # Cepheids
+                             '3642-2459-1', '3999-1391-1', '2607-1448-1',  # Cepheids
+                             '3655-469-1', '1476-148-1', '1233-531-1',  # RR Lyrae
+                             '3029-738-1', '6863-1255-1', '6954-1236-1', '9380-420-1'  # RR Lyrae
+                             '6192-461-1'  # DSCT
+                             ]
+    dsct = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.4) & (data_frame.M_V > 2.5)].tycho2_id.tolist()
+    dsct2 = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.25) & (data_frame.M_V > 3.)].tycho2_id.tolist()
+    print "Dropping objects DSCT: %s" % dsct
+    data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(dsct)].index)
+    data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(dsct2)].index)
+    print "Dropping objects: %s.." % misclassified_objects
+    data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(misclassified_objects)].index)
+    print "..Done\n----------"
     return data_frame
+
+
+def deredden_cepheids(df_variables):
+    """
+    compute the dereddened values of B-V and M_V for the six Cepheids in our sample (parallax cutoff = 0.25 and
+    B-V error < 0.1).
+    :param df_variables: DataFrame of the variable stars
+    :type df_variables: pandas.core.frame.DataFrame
+    :return: updated DataFrame of variable stars
+    """
+    extinction_coefficients = {'2365-2764-1': np.array([0.2622, 0.844]), '4109-638-1': np.array([0.0524, 0.1576]),
+                               '2058-56-1': np.array([0.0751, 0.248]), '3642-2459-1': np.array([0.1907, 0.608]),
+                               '3999-1391-1': np.array([0.3911, 1.2480]), '2607-1448-1': np.array([0.0430, 0.1310])}
+    print "Dereddening Cepheids:"
+    for tyc in extinction_coefficients.keys():
+        print "%s.." % tyc
+        b_minus_v = df_variables[df_variables.tycho2_id == tyc].B_V
+        m_v = df_variables[df_variables.tycho2_id == tyc].M_V
+        extinc = extinction_coefficients[tyc]
+        df_variables.set_value(df_variables.tycho2_id == tyc, 'B_V', b_minus_v - extinc[0])
+        df_variables.set_value(df_variables.tycho2_id == tyc, 'M_V', m_v - extinc[1])
+    print "..Done\n----------"
+
+    return df_variables
 
 
 def plot_dereddening():
     """
-    plot a Cepheid at its dereddened position on the HR diag.
+    plot a Cepheid at its reddened position on the HR diag. (assume that deredden_cepheids() have been used)
     Reddening coefficients are taken from http://irsa.ipac.caltech.edu/applications/DUST/ using object's RA/DEC
     :return:
     """
@@ -379,14 +423,23 @@ def plot_dereddening():
     cepheids = {'2365-2764-1': np.array([0.959, 2.09]), '4109-638-1': np.array([0.705, 2.385]), '2058-56-1':
                 np.array([1.222, 1.333]), '3642-2459-1': np.array([1.088, 2.0518]), '3999-1391-1':
                 np.array([1.360, 1.2567]), '2607-1448-1': np.array([1.484, 0.6963])}
+    periods = {'2365-2764-1': 1.61, '4109-638-1': 15.31, '2058-56-1': 63.08, '3642-2459-1': 1.86, '3999-1391-1': 24.98,
+               '2607-1448-1': 8.54}
+    max_periods = max(periods.values())
 
     new_positions_bv_mv = []  # in M_V vs B-V space
+    colors = []
+    theoretical_position = []
     for obj in extinction_coefficients.keys():
-        new_positions_bv_mv.append(cepheids[obj]-extinction_coefficients[obj])
+        # new_positions_bv_mv.append(cepheids[obj]-extinction_coefficients[obj])
+        new_positions_bv_mv.append(cepheids[obj])
+        colors.append(periods[obj]/max_periods)
+        theoretical_position.append(-2.78*np.log10(periods[obj])-1.35)
 
     for pos in range(len(new_positions_bv_mv)):
-        plt.scatter(new_positions_bv_mv[pos][0], new_positions_bv_mv[pos][1], marker='^', facecolor='w', s=50)
-    return
+        plt.scatter(new_positions_bv_mv[pos][0], new_positions_bv_mv[pos][1], marker='^', facecolor='w', s=40)
+        plt.scatter(new_positions_bv_mv[pos][0], theoretical_position[pos], marker='o', facecolor='r', s=50)
+    return new_positions_bv_mv, colors
 
 # ================================================== #
 # ================================================== #
@@ -443,10 +496,13 @@ if __name__ == "__main__":
                       'GDOR', 'SPB', 'M']
 
     list_variables = get_variable_stars(df, df2, variable_types)
+
+    list_variables = remove_misclassified_objects(list_variables)
+    list_variables = deredden_cepheids(list_variables)
+
     ########################################################
     # Plotting of HR diag and variables stars (with errors): #
     ########################################################
     if args.draw is True:
         plot_full(df, list_variables, variable_types, x='B_V', y='M_V', cutoff=args.cutoff, bvcutoff=args.bvcutoff)
         plt.legend(loc="lower right", fontsize=15, scatterpoints=1)
-
