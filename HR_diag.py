@@ -151,9 +151,10 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
     print "cutoff at %s" % cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
     plot_hr_diag(plot_df, x=x, y=y, cutoff=cutoff, bvcutoff=bvcutoff)
-    plt.colorbar()
+    cb = plt.colorbar()
+    cb.set_label("number of TGAS sources per color-mag bin")
     plot_variable_stars(list_variable_stars, variable_stars_types, x=x, y=y)
-    nTEX.plotSettings()
+    nTEX.plotSettings(width=11., height=10.)
     print "----------"
     plt.show()
     return
@@ -162,14 +163,15 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
 def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     """ plot the background stars (HR diagram).
     The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
-    plt.figure()
+    plt.figure(figsize=(11., 10.))
     print "Plotting background stars.."
-    plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10, alpha=.5)
+    plt.set_cmap('gray_r')
+    plt.hist2d(hr_df[x].tolist(), hr_df[y].tolist(), (200, 200), norm=LogNorm(), cmin=10)
     plt.axis([-0.2, 2.35, -3., 7.])
     plt.gca().invert_yaxis()
-    plt.xlabel(r'$BT-VT$')
-    plt.ylabel(r'$M_{VT}$')  # Plotting M_{VT}
-    plt.suptitle(r'$\sigma_\pi / \pi < %s, \sigma_{BT-VT}< %s$' % (cutoff, bvcutoff))
+    plt.xlabel(r'$BT-VT$ (mag)')
+    plt.ylabel(r'$M_{VT}$ (mag)')  # Plotting M_{VT}
+    plt.title(r'$\sigma_\pi / \pi < %s, \sigma_{BT-VT}< %s$ mag' % (cutoff, bvcutoff))
     print "..Done\n----------"
     return
 
@@ -188,9 +190,9 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
                         'SPB', 'M']
-    markers = ['^', 'o', 'o', 'v', 's', '<', '<', '<', '<', 's', '>', '>', '*', 'o', 'p']
-    colors = ['b', 'b', 'b', 'y', 'r', 'r', 'r', 'r', 'r', 'c', 'c', 'c', 'm', 'g', 'w']
-    sizes = [50,  40,  40,  30,  50,  40,  40,  40,  40,  50,  50,  50,  30,  40,  45]
+    markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p']
+    colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w']
+    sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45]
     labels = ['CEP', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
               'SPB', 'M']
     for i in range(len(variabletype)):
@@ -214,7 +216,7 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
 
     print "Selecting variable stars.."
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
-    typesdf = are_variables[['hip', 'tycho2_id', 'Type', 'Name']]
+    typesdf = are_variables[['hip', 'tycho2_id', 'source_id', 'Type', 'Name']]
     print "..Done"
     print "Preparing subselection of initial DataFrame.."
     print "..Making Hipparcos list.."
@@ -277,8 +279,9 @@ def remove_misclassified_objects(data_frame):
                              '3642-2459-1', '3999-1391-1', '2607-1448-1',  # Cepheids
                              '3655-469-1', '1476-148-1', '1233-531-1',  # RR Lyrae
                              '3029-738-1', '6863-1255-1', '6954-1236-1', '9380-420-1'  # RR Lyrae
-                             '6192-461-1'  # DSCT
-                             ]
+                             '6192-461-1',  # DSCT
+                             '2550-686-1', '4992-357-1', '9380-420-1', '8562-728-1', '6567-2007-1', '6040-2003-1',  # RR
+                             '2553-1108-1']
     dsct = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.4) & (data_frame.M_V > 2.5)].tycho2_id.tolist()
     dsct2 = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.25) & (data_frame.M_V > 3.)].tycho2_id.tolist()
     print "Dropping objects DSCT: %s %s" % (dsct, dsct2)
@@ -382,17 +385,16 @@ if __name__ == "__main__":
     # print "..Done"
     df = data_process(df, cutoff=args.cutoff, bv_cutoff=args.bvcutoff)
     """
-    else:
-        # Use of 'xmatch_TGAS_Tycho2.csv' instead of 'xmatch_TGAS_Simbad.csv'
-        # want to use tycho2's B and V mags
+    # Use of 'xmatch_TGAS_Tycho2.csv' instead of 'xmatch_TGAS_Simbad.csv'
+    want to use tycho2's B and V mags
 
-        df = import_data(catalog='xmatch_TGAS_Simbad.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
+    df = import_data(catalog='xmatch_TGAS_Simbad.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
                                                                    'phot_g_mean_mag', 'B', 'V', 'J', 'K'),
                          nrows=args.nrows)
-        df = data_process(df, catalog='xmatch_TGAS_Simbad.csv', cutoff=args.cutoff)
+    df = data_process(df, catalog='xmatch_TGAS_Simbad.csv', cutoff=args.cutoff)
     """
-    df2 = import_data(catalog='xmatch_TGAS_VSX.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
-                                                             'Name', 'V', 'Type'), nrows=args.nrows)
+    df2 = import_data(catalog='xmatch_TGAS_VSX.csv', params=('hip', 'tycho2_id', 'source_id', 'parallax',
+                                                             'parallax_error', 'Name', 'V', 'Type'), nrows=args.nrows)
     df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
@@ -409,3 +411,6 @@ if __name__ == "__main__":
     if args.draw is True:
         plot_full(df, list_variables, variable_types, x='B_V', y='M_V', cutoff=args.cutoff, bvcutoff=args.bvcutoff)
         plt.legend(loc="lower right", fontsize=15, scatterpoints=1)
+        fig = plt.figure(num=1)
+        fig.set_figheight(10.)
+        fig.set_figwidth(11.)
