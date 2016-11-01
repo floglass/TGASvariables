@@ -193,8 +193,8 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p']
     colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w']
     sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45]
-    labels = ['CEP', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
-              'SPB', 'M']
+    labels = ['', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
+              'SPB', '']
     for i in range(len(variabletype)):
         if i in [2, 6, 7, 8, 11]:
             my_label = None
