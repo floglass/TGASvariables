@@ -380,19 +380,9 @@ if __name__ == "__main__":
     print "Opening pickle file '%s'.." % target
     df = pd.read_pickle(target)
     print "..Done"
-    # print "Opening pickle file '%s'.." % target2
-    # df2 = pd.read_pickle(target2)
-    # print "..Done"
-    df = data_process(df, cutoff=args.cutoff, bv_cutoff=args.bvcutoff)
-    """
-    # Use of 'xmatch_TGAS_Tycho2.csv' instead of 'xmatch_TGAS_Simbad.csv'
-    want to use tycho2's B and V mags
 
-    df = import_data(catalog='xmatch_TGAS_Simbad.csv', params=('hip', 'tycho2_id', 'parallax', 'parallax_error',
-                                                                   'phot_g_mean_mag', 'B', 'V', 'J', 'K'),
-                         nrows=args.nrows)
-    df = data_process(df, catalog='xmatch_TGAS_Simbad.csv', cutoff=args.cutoff)
-    """
+    df = data_process(df, cutoff=args.cutoff, bv_cutoff=args.bvcutoff)
+
     df2 = import_data(catalog='xmatch_TGAS_VSX.csv', params=('hip', 'tycho2_id', 'source_id', 'parallax',
                                                              'parallax_error', 'Name', 'V', 'Type'), nrows=args.nrows)
     df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
