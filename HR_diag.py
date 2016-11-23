@@ -386,7 +386,7 @@ if __name__ == "__main__":
                         help="The number of line contained in the initial DataFrame. Default=default")
     parser.add_argument('-d', '--draw', dest='draw', action='store_false', default=True,
                         help="Switch the plotting off. Default=default.")
-    parser.add_argument('-m', '--magnitude', dest='bvcutoff', action='store', default=0.15, type=float,
+    parser.add_argument('-m', '--magnitude', dest='bvcutoff', action='store', default=0.1, type=float,
                         help="cutoff in 'B-V' magnitude. Default=default.")
     args = parser.parse_args()
 
