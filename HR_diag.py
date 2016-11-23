@@ -148,14 +148,15 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
         variable_stars_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
                                 'GDOR', 'SPB', 'M', 'LPV']
     plt.ion()
-    print "cutoff at %s" % cutoff
+    print "Plot started.."
+    print "Cutoff at %s" % cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
     plot_hr_diag(plot_df, x=x, y=y, cutoff=cutoff, bvcutoff=bvcutoff)
     cb = plt.colorbar()
     cb.set_label("number of TGAS sources per color-mag bin")
     plot_variable_stars(list_variable_stars, variable_stars_types, x=x, y=y)
     nTEX.plotSettings(width=11., height=10.)
-    print "----------"
+    print "..Done\n----------"
     plt.show()
     return
 
@@ -180,7 +181,7 @@ def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     plt.xlabel(r'$BT-VT$ (mag)')
     plt.ylabel(r'$M_{VT}$ (mag)')  # Plotting M_{VT}
     plt.title(r'$\sigma_\pi / \pi < %s, \sigma_{BT-VT}< %s$ mag' % (cutoff, bvcutoff))
-    print "..Done\n----------"
+    print "..Done"
     return
 
 
@@ -296,13 +297,17 @@ def remove_misclassified_objects(data_frame):
                              '6192-461-1',  # DSCT
                              '2550-686-1', '4992-357-1', '9380-420-1', '8562-728-1', '6567-2007-1', '6040-2003-1',  # RR
                              '2553-1108-1',
-                             '4851-2441-1', '8962-577-1']
+                             '4851-2441-1', '8962-577-1',
+                             '3135-132-1', '8976-3674-1', '3136-437-1', '1506-618-1', '7046-1715-1', '3140-3046-1',
+                             '2000-162-1', '6210-755-1', '3547-1807-1', '8836-935-1', '3033-273-1', '7606-437-1',
+                             '3049-180-1', '9198-1862-1', '8192-626-1', '7703-1577-1', '8594-433-1', '6833-280-1'
+                             ]
     dsct = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.4) & (data_frame.M_V > 2.5)].tycho2_id.tolist()
     dsct2 = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.25) & (data_frame.M_V > 3.)].tycho2_id.tolist()
     print "Dropping objects DSCT: %s %s" % (dsct, dsct2)
     data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(dsct)].index)
     data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(dsct2)].index)
-    print "Dropping objects: %s.." % misclassified_objects
+    print "Dropping objects: %s" % misclassified_objects
     data_frame = data_frame.drop(data_frame[data_frame.tycho2_id.isin(misclassified_objects)].index)
     print "..Done\n----------"
     return data_frame
@@ -409,6 +414,9 @@ if __name__ == "__main__":
 
     list_variables = remove_misclassified_objects(list_variables)
     list_variables = deredden_cepheids(list_variables)
+    print "Saving 'list_variables.csv' on disk.."
+    list_variables.to_csv("list_variables.csv")
+    print "..Done\n----------"
 
     ########################################################
     # Plotting of HR diag and variables stars (with errors): #
