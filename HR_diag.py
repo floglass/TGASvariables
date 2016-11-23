@@ -234,6 +234,7 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
     # var_type = "|".join(variabletype)
     # check if var_type is contained in Type (any or all, partial or not)
     # are_variables = df_variables_names[df_variables_names.Type.str.contains(var_type) == True]  # fails with "is True"
+    # are_variables.Type = are_variables.Type.str.replace(".*BCEP.*", "BCEP")  # rename all types containing 'BCEP'
     are_variables = df_variables_names[df_variables_names.Type.isin(variabletype)]
     types_df = are_variables[['hip', 'tycho2_id', 'source_id', 'Type', 'Name']]
     print "..Done"
