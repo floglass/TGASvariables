@@ -146,7 +146,7 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
     """
     if variable_stars_types is None:
         variable_stars_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                                'GDOR', 'SPB', 'M']
+                                'GDOR', 'SPB', 'M', 'LPV']
     plt.ion()
     print "cutoff at %s" % cutoff
     print "Plotting '%s' vs. '%s'" % (y, x)
@@ -162,7 +162,15 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
 
 def plot_hr_diag(hr_df, x='B_V', y='M_V', cutoff=0.2, bvcutoff=0.05):
     """ plot the background stars (HR diagram).
-    The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown. """
+    The plot is a 2d histogram, for better readability. Only bins with at least 10 stars a shown.
+
+    :param hr_df: pandas.DataFrame of the background stars
+    :param x: hr_df column name to put on the x-axis
+    :param y: hr_df column name for y-axis
+    :param cutoff: the relative parallax error cutoff
+    :param bvcutoff: the B-V magnitude cutoff
+    :return:
+    """
     plt.figure(figsize=(11., 10.))
     print "Plotting background stars.."
     plt.set_cmap('gray_r')
@@ -189,12 +197,12 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
-                        'SPB', 'M']
-    markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p']
-    colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w']
-    sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45]
+                        'SPB', 'M', 'LPV']
+    markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p', 'o']
+    colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w', 'w']
+    sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45, 40]
     labels = ['', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
-              'SPB', '']
+              'SPB', '', 'LPV']
     for i in range(len(variabletype)):
         if i in [2, 6, 7, 8, 11]:
             my_label = None
@@ -209,10 +217,16 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
 
 def get_variable_stars(df_data, df_variables_names, variabletype=None):
     """ Child function fo plot_variable_stars. Process the DataFrame to select only stars marked as
-    'var_type' variable stars. """
+    'var_type' variable stars.
+
+    :param df_data: pandas.DataFrame with the sample stars (background and variables)
+    :param df_variables_names: pandas.DataFrame containing the ID of variables stars
+    :param variabletype: types of variables of interest - leave it to None
+    :return: a subset of the df_data, containing only the variable stars
+    """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                        'GDOR', 'SPB', 'M']
+                        'GDOR', 'SPB', 'M', 'LPV']
 
     print "Selecting variable stars.."
     are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
@@ -250,7 +264,7 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
 def get_hip_sources(df_main_catalog=None, variable_class=None):
     if variable_class is None:
         variable_class = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                          'GDOR', 'SPB', 'M']
+                          'GDOR', 'SPB', 'M', 'LPV']
     hip_sources = pd.read_csv('Hip/variables.tsv', delimiter=';', header=0)
     variable_stars = hip_sources[hip_sources.loc[:, 'VarType'].isin(variable_class)]
     variable_stars.hip = variable_stars.hip.astype(float)
@@ -281,7 +295,8 @@ def remove_misclassified_objects(data_frame):
                              '3029-738-1', '6863-1255-1', '6954-1236-1', '9380-420-1'  # RR Lyrae
                              '6192-461-1',  # DSCT
                              '2550-686-1', '4992-357-1', '9380-420-1', '8562-728-1', '6567-2007-1', '6040-2003-1',  # RR
-                             '2553-1108-1']
+                             '2553-1108-1',
+                             '4851-2441-1', '8962-577-1']
     dsct = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.4) & (data_frame.M_V > 2.5)].tycho2_id.tolist()
     dsct2 = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.25) & (data_frame.M_V > 3.)].tycho2_id.tolist()
     print "Dropping objects DSCT: %s %s" % (dsct, dsct2)
@@ -388,7 +403,7 @@ if __name__ == "__main__":
     df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                      'GDOR', 'SPB', 'M']
+                      'GDOR', 'SPB', 'M', 'LPV']
 
     list_variables = get_variable_stars(df, df2, variable_types)
 
