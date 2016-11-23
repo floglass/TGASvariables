@@ -230,8 +230,12 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
                         'GDOR', 'SPB', 'M', 'LPV']
 
     print "Selecting variable stars.."
-    are_variables = df_variables_names[df_variables_names.loc[:, 'Type'].isin(variabletype)]
-    typesdf = are_variables[['hip', 'tycho2_id', 'source_id', 'Type', 'Name']]
+    # create a string "var_type" of variabletype separated by or ('|').
+    # var_type = "|".join(variabletype)
+    # check if var_type is contained in Type (any or all, partial or not)
+    # are_variables = df_variables_names[df_variables_names.Type.str.contains(var_type) == True]  # fails with "is True"
+    are_variables = df_variables_names[df_variables_names.Type.isin(variabletype)]
+    types_df = are_variables[['hip', 'tycho2_id', 'source_id', 'Type', 'Name']]
     print "..Done"
     print "Preparing subselection of initial DataFrame.."
     print "..Making Hipparcos list.."
@@ -248,12 +252,12 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
 
     print "Getting Hipparcos and Tycho variable objects.."
     hip_objects = df_data[df_data.hip.isin(hip_list)]
-    hip_objects = pd.merge(hip_objects, typesdf, on='hip', how='inner')
+    hip_objects = pd.merge(hip_objects, types_df, on='hip', how='inner')
     hip_objects = hip_objects.drop('tycho2_id_y', axis=1)
     hip_objects = hip_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
 
     tycho_objects = df_data[df_data.tycho2_id.isin(tycho2_list)]
-    tycho_objects = pd.merge(tycho_objects, typesdf, on='tycho2_id', how='inner')
+    tycho_objects = pd.merge(tycho_objects, types_df, on='tycho2_id', how='inner')
     tycho_objects = tycho_objects.drop('hip_y', axis=1)
     tycho_objects = tycho_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
     print "..Done\n----------"
