@@ -146,7 +146,7 @@ def plot_full(plot_df, list_variable_stars, variable_stars_types=None, x='B_V', 
     """
     if variable_stars_types is None:
         variable_stars_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                                'GDOR', 'SPB', 'M', 'LPV']
+                                'GDOR', 'SPB', 'M', 'LPV', 'roAp']
     plt.ion()
     print "Plot started.."
     print "Cutoff at %s" % cutoff
@@ -198,12 +198,12 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
     """
     if variabletype is None:
         variabletype = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC', 'GDOR',
-                        'SPB', 'M', 'LPV']
-    markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p', 'o']
-    colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w', 'w']
-    sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45, 40]
+                        'SPB', 'M', 'LPV', 'roAp']
+    markers = ['^', 'D', 'D', 'v', 's', 'D', 'D', 'D', 'D', 's', 'D', 'D', 'D', 'o', 'p', 'o', 'o']
+    colors = ['k', 'k', 'k', '#00c000', 'r', 'r', 'r', 'r', 'r', 'm', 'm', 'm', '#00c0ff', (1, .7, 0), 'w', 'w', 'r']
+    sizes = [50,  40,  40,  40,  50,  40,  40,  40,  40,  50,  50,  50,  40,  40,  45, 40, 40]
     labels = ['', "BCEP, BCEPS", '', 'DSCT', 'SR', "SRA, SRB, SRC, SRD", '', '', '', 'RR', "RRAB, RRC", '', 'GDOR',
-              'SPB', '', 'LPV']
+              'SPB', '', 'LPV', 'roAp']
     for i in range(len(variabletype)):
         if i in [2, 6, 7, 8, 11]:
             my_label = None
@@ -263,7 +263,17 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
     tycho_objects = tycho_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
     print "..Done\n----------"
 
-    variable_df = pd.concat([hip_objects, tycho_objects], axis=0, ignore_index=True)
+    print "Getting roAp stars from file.."
+    # roAP_names.csv contains tycho2_id names of roAp stars
+    with open('roAP/roAP_names.csv') as roAP_file:
+        roap_objects_list = roAP_file.readlines()
+    roap_objects_list = [line.rstrip() for line in roap_objects_list]
+    roap_objects = df_data[df_data.tycho2_id.isin(roap_objects_list)]
+    column_number = len(roap_objects.columns)
+    roap_objects.insert(column_number, 'Type', 'roAp')
+    print "..Done\n----------"
+
+    variable_df = pd.concat([hip_objects, tycho_objects, roap_objects], axis=0, ignore_index=True)
     return variable_df
 
 
@@ -287,6 +297,7 @@ def remove_misclassified_objects(data_frame):
     -- added a Variability flag check in data_process, where only CONFIRMED variables are now kept --
 
     drop misclassified objects, like SR stars on the Main Sequence, optical binaries, etc.
+    This is a very tedious part of this project: GAIA will help tremendously with its DR2 in 2017.
     :param data_frame: pandas.DataFrame containing all the variable stars
     :return: cleaned up DataFrame, with misclassified objects removed
     """
@@ -306,7 +317,7 @@ def remove_misclassified_objects(data_frame):
                              '3135-132-1', '8976-3674-1', '3136-437-1', '1506-618-1', '7046-1715-1', '3140-3046-1',
                              '2000-162-1', '6210-755-1', '3547-1807-1', '8836-935-1', '3033-273-1', '7606-437-1',
                              '3049-180-1', '9198-1862-1', '8192-626-1', '7703-1577-1', '8594-433-1', '6833-280-1',
-                             '9270-1803-1', '8153-376-1', '8169-431-1'
+                             '9270-1803-1', '8153-376-1', '8169-431-1', '3086-1770-1', '6472-1634-1', '9321-795-1', '2664-351-1'
                              ]
     dsct = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.4) & (data_frame.M_V > 2.5)].tycho2_id.tolist()
     dsct2 = data_frame[(data_frame.Type == 'DSCT') & (data_frame.B_V > 0.25) & (data_frame.M_V > 3.)].tycho2_id.tolist()
@@ -414,7 +425,7 @@ if __name__ == "__main__":
     df2 = data_process(df2, catalog='xmatch_TGAS_VSX.csv', cutoff=args.cutoff)
 
     variable_types = ['CEP', 'BCEP', 'BCEPS', 'DSCT', 'SR', 'SRA', 'SRB', 'SRC', 'SRD', 'RR', 'RRAB', 'RRC',
-                      'GDOR', 'SPB', 'M', 'LPV']
+                      'GDOR', 'SPB', 'M', 'LPV', 'roAp']
 
     list_variables = get_variable_stars(df, df2, variable_types)
 
