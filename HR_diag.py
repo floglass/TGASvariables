@@ -7,13 +7,17 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import argparse
 import cPickle  # use JSON instead ?
+from astropy.table import Table
+from os.path import isfile
+import sys
 
 """ This code's goal is to add some photometric measurements from the Tycho2 catalog to the recently released Tycho-Gaia
 DR1 catalog. The latter not including the photometric data.
 The Tycho2 catalog contains 2539913 stars with BT and VT magnitudes, as well as other astrometric measurements.
 The TGAS catalog contains 2057050 stars with very accurate astrometric measurements, as well as a g band mean mag.
-We are trying to make a M_VT versus BT-VT Hertzprung-Russell diagram, to check variable stars in the catalog sample.
-The photometry used is Tycho2's, hence the BT, VT and M_VT magnitudes (instead of the more traditional Johnson's B, V)
+We are trying to make a M_G versus BT-VT Hertzprung-Russell diagram, to check variable stars in the catalog sample.
+The photometry used is Tycho2's, hence the BT and VT mag (instead of the more traditional Johnson's B, V)
+The absolute magnitude is M_G, using Gaia's G band.
 """
 
 
@@ -26,19 +30,31 @@ def import_data(catalog='xmatch_TGAS_Simbad.csv', params=None, nrows=None, delim
     return df_imported
 
 
+def import_fits(fitsfile='tgasptyc.fits'):
+    """
+    Open a table fits file and convert it to a pandas dataframe.
+    :param fitsfile: the Table file
+    :return: the pandas dataframe
+    """
+    if isfile(fitsfile):
+        print "Opening %s.." % fitsfile
+        table = Table.read(fitsfile)
+        pandas_df = table.to_pandas()
+        table = None
+    else:
+        print "%s not found. Exiting." % fitsfile
+        sys.exit()
+    print "Converting table to pandas_df.."
+    print "..Done"
+    return pandas_df
+
+
 def create_tycho_id(tycho2df):
     """ creates a new column 'tycho2_id' in the tycho2 catalog. This is for comparison with the TGAS catalog. """
     tycho2df['tycho2_id'] = tycho2df.TYC1.astype(str).str.cat(tycho2df.TYC2.astype(str), sep='-')\
         .str.cat(tycho2df.TYC3.astype(str), sep='-')
     tycho2df = tycho2df.rename(columns={'HIP': 'hip'})
     return tycho2df
-
-
-def reindex(tycho2df_toindex):
-    """ passes the two columns 'hip' and 'tycho2_id' as indexes of the DataFrame
-    -- DEPRECATED --"""
-    tycho2df_toindex = tycho2df_toindex.set_index(['hip', 'tycho2_id'])
-    return tycho2df_toindex
 
 
 def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
@@ -49,7 +65,7 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
 
     :param df_toprocess: pandas.DataFrame
     :param cutoff: the maximum relative error on parallax allowed
-    :param bv_cutoff: the maximum error on temperature (B-V mag)
+    :param bv_cutoff: the maximum error on color (B-V mag)
     :param catalog: catalog name from which the stars are taken, in a .csv form
     :return: processed DataFrame
     """
@@ -65,7 +81,7 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
 
     print catalog
     if catalog is None:
-        print "Replacing whitespace by nan"
+        print "Replacing whitespace with nan"
         df_toprocess = df_toprocess.replace('      ', np.nan)  # some cells are '      ' instead of nan
 
         print "Converting BTmag and VTmag to floats.."
@@ -112,7 +128,8 @@ def data_process(df_toprocess=None, cutoff=0.2, bv_cutoff=0.15, catalog=None):
 
 
 def get_pickle(get_file='simbad_mag_errors.pkl'):
-    """ load and unpickle a pickled pandas.DataFrame 'pkl_file' """
+    """ load and unpickle a pickled pandas.DataFrame 'pkl_file'. 
+    Should not use pickles because of version compatibility issues."""
     print "Opening %s and unpickling the DataFrame.." % get_file
     with open(get_file, 'r') as opened_file:
         df_unpickled = cPickle.load(opened_file)
@@ -254,13 +271,15 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
     print "Getting Hipparcos and Tycho variable objects.."
     hip_objects = df_data[df_data.hip.isin(hip_list)]
     hip_objects = pd.merge(hip_objects, types_df, on='hip', how='inner')
-    hip_objects = hip_objects.drop('tycho2_id_y', axis=1)
-    hip_objects = hip_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
+    if 'tycho2_id_y' in hip_objects.columns:
+        hip_objects = hip_objects.drop('tycho2_id_y', axis=1)
+        hip_objects = hip_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
 
     tycho_objects = df_data[df_data.tycho2_id.isin(tycho2_list)]
     tycho_objects = pd.merge(tycho_objects, types_df, on='tycho2_id', how='inner')
-    tycho_objects = tycho_objects.drop('hip_y', axis=1)
-    tycho_objects = tycho_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
+    if 'hip_y' in tycho_objects.columns:
+        tycho_objects = tycho_objects.drop('hip_y', axis=1)
+        tycho_objects = tycho_objects.rename(columns={'hip_x': 'hip', 'tycho2_id_x': 'tycho2_id'})
     print "..Done\n----------"
 
     print "Getting roAp stars from file.."
@@ -274,6 +293,8 @@ def get_variable_stars(df_data, df_variables_names, variabletype=None):
     print "..Done\n----------"
 
     variable_df = pd.concat([hip_objects, tycho_objects, roap_objects], axis=0, ignore_index=True)
+    variable_df.source_id = variable_df.source_id.fillna(-9999).astype(int)
+
     return variable_df
 
 
@@ -396,8 +417,8 @@ if __name__ == "__main__":
     #################################
     parser = argparse.ArgumentParser(description='Creates a HR diagram with variables stars',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-p', '--pickle', dest='pickle', action='store_false', default=True,
-                        help="Switch for building pickle files of stars and variable stars. Default=default.")
+    parser.add_argument('-p', '--path', dest='path', action='store', default='TGAS_source/tgasptyc.fits',
+                        help="Path to data FITS table file. Default=default.")
     parser.add_argument('-c', '--cutoff', dest='cutoff', action='store', default=0.2, type=float,
                         help="At which percentage in relative parallax error should the data stop being read."
                              "Default=default.")
@@ -416,9 +437,10 @@ if __name__ == "__main__":
     target = 'xmatch_TGAS_Tycho2_ByHand.pkl'  # TGAS + photometric measurements from Tycho2
     # target2 = 'df2_%s.pkl' % args.cutoff  # comes from xmatch TGAS and VSX
 
-    print "Opening pickle file '%s'.." % target
+    # print "Opening pickle file '%s'.." % target
     df = pd.read_pickle(target)
-    print "..Done"
+    # df = import_fits(args.path)
+    # print "..Done"
 
     df = data_process(df, cutoff=args.cutoff, bv_cutoff=args.bvcutoff)
 
