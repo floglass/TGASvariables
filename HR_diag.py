@@ -228,7 +228,7 @@ def plot_variable_stars(variablesdf, variabletype=None, x='B_V', y='M_V'):
             my_label = "%s" % labels[i]
         plt.scatter(variablesdf[x].loc[variablesdf.loc[:, 'Type'] == variabletype[i]], variablesdf[y]
                     .loc[variablesdf.loc[:, 'Type'] == variabletype[i]], facecolor=colors[i], marker=markers[i],
-                    s=sizes[i], label=my_label)
+                    s=sizes[i], label=my_label, edgecolor='k')
         print "plotting %s as %s%s" % (variabletype[i], colors[i], markers[i])
     return
 
