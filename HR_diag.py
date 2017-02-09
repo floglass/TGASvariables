@@ -40,7 +40,6 @@ def import_fits(fitsfile='tgasptyc.fits'):
         print "Opening %s.." % fitsfile
         table = Table.read(fitsfile)
         pandas_df = table.to_pandas()
-        table = None
     else:
         print "%s not found. Exiting." % fitsfile
         sys.exit()
