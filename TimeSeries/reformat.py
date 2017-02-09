@@ -9,7 +9,7 @@ import numpy as np
 import json
 
 
-def reformat(line):  # band as in measurement band
+def reformat(line):
     """
     reformat (long string) line into a list of appropriate format (strings and floats).
     get the four lines separately:
@@ -32,13 +32,13 @@ def reformat(line):  # band as in measurement band
     ts[0] = header.rstrip("}(\"\")\"\",\n")
 
     ts[0] = [float(x) if i > 1 else x for i, x in enumerate(ts[0].split(','))]
-    # last two elements are parallaxe and parallaxe_error: should be floats
+    # last two elements are parallax and parallax_error: should be floats
     for i in range(1, 4):
         ts[i] = [float(x) for x in ts[i].split(',')]
     return ts
 
 
-def checkdata(band, nodatacount):
+def check_data(band, nodatacount):
 
     line = band.split('(')  # two lines - header and data
     if line[1][1] == ',':
@@ -50,7 +50,7 @@ def checkdata(band, nodatacount):
     return line, nodatacount
 
 
-def getdata(target=None):
+def get_data(target=None):
     """
     Load and read 'target', and call reformat on each line.
     Will output a dictionary (of dictionary of dictionary) of the form:
@@ -87,7 +87,7 @@ def getdata(target=None):
     no_data_count = 0
     for i in range(1, len(data_original)):
         print "\nProcessing row %s" % i
-        row, no_data_count = checkdata(data_original[i], no_data_count)
+        row, no_data_count = check_data(data_original[i], no_data_count)
 
         header = row[0]
         source_id = header[0]
@@ -114,7 +114,7 @@ def getdata(target=None):
 
     
 if __name__ == "__main__":
-    data = getdata('targets.csv')
+    data = get_data('targets.csv')
     json.dump(data, open("data.txt", 'w'))
 
     # Load with json.load(open("data.txt"))
